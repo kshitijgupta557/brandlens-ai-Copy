@@ -8,34 +8,55 @@ from gemini import create_client, MODEL_ID
 
 
 def _safe_quota_details(exc: Exception) -> str:
-    """Expose only recognized quota metadata, never raw API responses or headers."""
-    parts = []
-    # SDK errors sometimes provide structured details, sometimes only a message.
-    # Restrict extraction to known Google quota identifiers and numeric limits.
-    raw = str(getattr(exc, "message", "") or "")
-    for pattern, label in (
-        (r'quotaId["\\s:=]+([A-Za-z0-9_.-]{1,100})', "Quota ID"),
-        (r'quotaMetric["\\s:=]+([A-Za-z0-9_./-]{1,140})', "Quota metric"),
-        (r'quota_limit_value["\\s:=]+([0-9]{1,12})', "Quota limit"),
-        (r'retryDelay["\\s:=]+([0-9]{1,6}s)', "Suggested retry delay"),
-    ):
-        match = re.search(pattern, raw, flags=re.IGNORECASE)
-        if match:
-            parts.append(f"{label}: {match.group(1)}")
-    # The SDK may expose parsed error details as a list of dictionaries.
+    """Extract allowlisted quota fields; never expose raw API messages."""
+    import json
+
+    found = []
+    allowed = {
+        "quotaId": "Quota ID",
+        "quotaMetric": "Quota metric",
+        "quota_limit_value": "Quota limit",
+        "retryDelay": "Retry delay",
+    }
+
+    def record(key, value):
+        if key in allowed and isinstance(value, (str, int)):
+            clean = str(value)
+            if re.fullmatch(r"[A-Za-z0-9_./-]{1,140}", clean):
+                entry = f"{allowed[key]}: {clean}"
+                if entry not in found:
+                    found.append(entry)
+
+    def walk(obj, depth=0):
+        if depth > 7:
+            return
+        if isinstance(obj, dict):
+            for key, value in list(obj.items())[:40]:
+                record(key, value)
+                if isinstance(value, (dict, list)):
+                    walk(value, depth + 1)
+        elif isinstance(obj, list):
+            for item in obj[:15]:
+                walk(item, depth + 1)
+
+    # Google GenAI SDK versions differ in whether error.details is structured.
     details = getattr(exc, "details", None)
-    if isinstance(details, list):
-        for item in details[:5]:
-            if not isinstance(item, dict):
+    if isinstance(details, (dict, list)):
+        walk(details)
+    raw = str(getattr(exc, "message", "") or "")
+    if len(raw) < 16000:
+        for candidate in (raw, raw[raw.find("{"):] if "{" in raw else ""):
+            if not candidate:
                 continue
-            for violation in item.get("violations", [])[:5] if isinstance(item.get("violations"), list) else []:
-                if not isinstance(violation, dict):
-                    continue
-                for key, label in (("quotaId", "Quota ID"), ("quotaMetric", "Quota metric"), ("quota_limit_value", "Quota limit")):
-                    value = violation.get(key)
-                    if isinstance(value, (str, int)) and re.fullmatch(r"[A-Za-z0-9_./-]{1,140}", str(value)):
-                        parts.append(f"{label}: {value}")
-    return " | ".join(dict.fromkeys(parts))[:450]
+            try:
+                walk(json.loads(candidate))
+            except (ValueError, TypeError):
+                pass
+        for key in allowed:
+            pattern = rf'["\\\']?{re.escape(key)}["\\\']?\\s*[:=]\\s*["\\\']?([A-Za-z0-9_./-]{{1,140}})'
+            for match in re.finditer(pattern, raw):
+                record(key, match.group(1))
+    return " | ".join(found)[:450]
 
 
 def research_with_sources(company: str, market: str, category: str) -> dict:
@@ -101,7 +122,7 @@ def research_with_sources(company: str, market: str, category: str) -> dict:
             message = f"Gemini API request failed (HTTP {code if isinstance(code, int) else 'unknown'})."
         detail = _safe_quota_details(exc) if code == 429 else ""
         if code == 429 and not detail:
-            detail = "Google did not expose a recognizable quota identifier in this response."
+            detail = "Quota identifier unavailable; this may be a model, feature, or project-level restriction."
         raise RuntimeError(message + (f" Diagnostic: {detail}." if detail else "") + " No results were saved.") from None
     except (AttributeError, TypeError, ValueError):
         raise RuntimeError("Gemini returned an unexpected or empty research response. No results were saved.") from None
