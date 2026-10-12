@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 import streamlit as st
 from dashboard import charts, demo
+from brand_research import generate_preliminary_audit
+import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
 
@@ -34,6 +36,61 @@ def brand_audit():
         feature("01 / Define the scope", "Your company, category and market label the workspace. Inputs stay in the current server session.")
         feature("02 / Load the demonstration", "The same fictional dataset is used for every company. No sites are searched and no model is called.")
         feature("03 / Explore the report structure", "Review the dashboard and download a report blueprint with evidence requirements and suggested slides.")
+    st.divider()
+    st.subheader("AI Brand Research · preliminary draft")
+    st.caption("One manual Gemini request per click. No web search or verified sources. This is not a completed audit.")
+    with st.form("ai_research_form"):
+        scope = st.session_state.workspace
+        ai_company = st.text_input("Research company", value=scope["company"], max_chars=100)
+        ai_market = st.text_input("Research market", value=scope["market"], max_chars=80)
+        ai_category = st.text_input("Research category", value=scope["category"], max_chars=100)
+        consent = st.checkbox("I understand this sends the three inputs to Gemini and returns unverified AI hypotheses.")
+        run_ai = st.form_submit_button("Generate preliminary AI analysis", type="primary")
+    if run_ai:
+        if not consent:
+            st.warning("Please acknowledge the AI-generated and unverified nature of this draft.")
+        elif not all(x.strip() for x in (ai_company, ai_market, ai_category)):
+            st.warning("Complete all three fields.")
+        else:
+            st.session_state.pop("ai_draft", None)
+            with st.spinner("Generating one preliminary AI draft..."):
+                try:
+                    draft = generate_preliminary_audit(ai_company, ai_market, ai_category)
+                    st.session_state.ai_draft = {
+                        "scope": (ai_company.strip(), ai_market.strip(), ai_category.strip()),
+                        "result": draft,
+                    }
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
+    if "ai_draft" in st.session_state:
+        saved = st.session_state.ai_draft
+        draft = saved["result"]
+        st.warning("UNVERIFIED AI DRAFT · No sources checked. Do not use as established facts or business decisions.")
+        st.caption("Scope: " + " · ".join(saved["scope"]))
+        for field, label in [
+            ("overview", "Brand overview"), ("products", "Potential product categories"),
+            ("target_customers", "Possible target customers"), ("positioning", "Positioning hypothesis"),
+            ("competitors", "Potential competitors — verify identities"),
+            ("strengths", "SWOT · strengths (hypotheses)"),
+            ("weaknesses", "SWOT · weaknesses (hypotheses)"),
+            ("opportunities", "SWOT · opportunities (hypotheses)"),
+            ("threats", "SWOT · threats (hypotheses)"),
+            ("verification_priorities", "What to verify next"),
+        ]:
+            with st.expander(label, expanded=field in ("overview", "verification_priorities")):
+                value = draft[field]
+                if isinstance(value, list):
+                    for item in value:
+                        st.write("• " + item)
+                else:
+                    st.write(value)
+        st.download_button(
+            "Download unverified draft (.json)",
+            data=json.dumps({"status": "UNVERIFIED AI DRAFT", **saved}, indent=2),
+            file_name="brandlens-preliminary-ai-draft.json",
+            mime="application/json",
+        )
+    st.divider()
     st.subheader("The planned audit team")
     st.caption("Architecture preview only. These agents are not running.")
     st.dataframe([
