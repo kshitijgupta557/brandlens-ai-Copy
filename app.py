@@ -2,7 +2,7 @@
 import streamlit as st
 from dashboard import views
 from dashboard.ui import apply_styles, page_header
-from gemini import get_api_key
+from gemini import get_api_key, test_connection, MODEL_ID
 
 st.set_page_config(page_title="BrandLens AI", page_icon="◈", layout="wide")
 apply_styles()
@@ -26,12 +26,22 @@ with st.sidebar:
     st.text(st.session_state.workspace["company"])
     st.caption("Demo mode · No external research")
     with st.expander("Connection status"):
-        st.write("Gemini requests: disabled")
-        st.caption("Key detected (not validated)." if get_api_key() else "No API key needed for this demo.")
-    st.caption("MILESTONE 02.1 / PRODUCT PREVIEW")
+        st.write("Gemini connection test: manual only")
+        st.caption("Key detected (not validated)." if get_api_key() else "No API key configured.")
+        st.caption(f"Model: {MODEL_ID}")
+        if st.button("Test Gemini Connection", disabled=not bool(get_api_key()), use_container_width=True):
+            with st.spinner("Sending one small test request..."):
+                result = test_connection()
+            if result.startswith("Connection successful"):
+                st.success(result)
+            elif result.startswith("Gemini responded"):
+                st.warning(result)
+            else:
+                st.error(result)
+    st.caption("MILESTONE 03.1 / CONNECTION TEST")
 page_header(page, st.session_state.workspace["company"])
 st.markdown('<div class="demo-notice"><b>DEMO DATA</b> All scores, charts and examples are synthetic. '
             'They do not describe the entered company. No sources have been collected.</div>', unsafe_allow_html=True)
 PAGES[page]()
 st.divider()
-st.caption("BrandLens AI · Demo workspace · Evidence collection and live audits are planned, not active.")
+st.caption("BrandLens AI · Demo workspace · Manual Gemini connection test available; evidence collection and live audits are not active.")
