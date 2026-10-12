@@ -47,7 +47,7 @@ with st.sidebar:
             else:
                 st.error(result)
     st.caption("BRANDLENS / RESEARCH + DEMO")
-page_header(page, active_scope["company"])
+page_header(page, active_scope["company"], research_loaded=has_research)
 if has_research:
     st.info("Research analysis available for " + active_scope["company"] + ". Findings are AI interpretations of unverified sources; charts and numeric demo scores remain synthetic.")
 else:
