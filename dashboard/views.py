@@ -4,6 +4,7 @@ import streamlit as st
 from dashboard import charts, demo
 from brand_research import generate_preliminary_audit
 from tavily_search import search_once
+from automated_research import run_research
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -131,6 +132,46 @@ def brand_audit():
                            json.dumps(result, indent=2),
                            file_name="brandlens-tavily-test.json",
                            mime="application/json")
+    st.divider()
+    st.subheader("Automated brand research · five topics")
+    st.caption("One click runs up to five BASIC Tavily searches. Estimated maximum: five basic-search credits. No Gemini calls or automatic retries.")
+    with st.form("automated_tavily_form"):
+        base = st.session_state.workspace
+        auto_company = st.text_input("Brand to research", value=base["company"], max_chars=100)
+        auto_market = st.text_input("Target market", value=base["market"], max_chars=80)
+        auto_category = st.text_input("Product category", value=base["category"], max_chars=100)
+        auto_ack = st.checkbox("I approve up to five Tavily basic searches for this run and understand the results are unverified.")
+        auto_run = st.form_submit_button("Run five-topic research", type="primary")
+    if auto_run:
+        if not auto_ack:
+            st.warning("Please acknowledge the research credit budget.")
+        elif not all(v.strip() for v in (auto_company, auto_market, auto_category)):
+            st.warning("Complete all three fields.")
+        else:
+            st.session_state.pop("automated_tavily_result", None)
+            with st.spinner("Collecting public search results across five topics..."):
+                try:
+                    st.session_state.automated_tavily_result = run_research(auto_company, auto_market, auto_category)
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
+    if "automated_tavily_result" in st.session_state:
+        report = st.session_state.automated_tavily_result
+        st.warning(report["status"])
+        st.caption(f"Requests attempted: {report['requests_attempted']} / {report['maximum_requests']} · Unique source URLs: {report['unique_sources']}")
+        st.caption("Retrieved: " + report["retrieved_at_utc"])
+        for issue in report["errors"]:
+            st.error(issue)
+        for section in report["sections"]:
+            with st.expander(f"{section['topic']} · {len(section['sources'])} unique sources", expanded=True):
+                st.caption("Search query: " + section["query"])
+                if not section["sources"]:
+                    st.info("No new usable HTTPS source links for this topic.")
+                for source in section["sources"]:
+                    st.markdown(f"**[{source['title']}]({source['url']})**")
+                    st.write(source["snippet"] or "No snippet provided.")
+        st.caption(report["note"])
+        st.download_button("Download research evidence (.json)", data=json.dumps(report, indent=2),
+                           file_name="brandlens-five-topic-research.json", mime="application/json")
     st.divider()
     st.subheader("The planned audit team")
     st.caption("Architecture preview only. These agents are not running.")
