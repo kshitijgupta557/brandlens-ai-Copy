@@ -10,6 +10,7 @@ from evidence_analysis import analyze_evidence
 from intelligence_dashboard import split_report, citations_for, coverage
 from intelligence_export import build_intelligence_report
 from pdf_export import build_pdf_report
+from audit_pipeline import run_complete_audit
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -43,6 +44,36 @@ def brand_audit():
         feature("01 / Define the scope", "Your company, category and market label the workspace. Inputs stay in the current server session.")
         feature("02 / Load the demonstration", "The same fictional dataset is used for every company. No sites are searched and no model is called.")
         feature("03 / Explore the report structure", "Review the dashboard and download a report blueprint with evidence requirements and suggested slides.")
+    st.divider()
+    st.subheader("Complete Brand Audit")
+    st.caption("One click: maximum five Tavily searches, local processing, and one Gemini analysis. No automatic retries.")
+    with st.form("complete_audit_form"):
+        values = st.session_state.workspace
+        full_company = st.text_input("Audit company", value=values["company"])
+        full_market = st.text_input("Audit market", value=values["market"])
+        full_category = st.text_input("Audit category", value=values["category"])
+        full_ok = st.checkbox("I approve up to five Tavily searches and one Gemini request.")
+        full_go = st.form_submit_button("Run Complete Brand Audit", type="primary")
+    if full_go:
+        if not full_ok:
+            st.warning("Approve the API requests first.")
+        else:
+            for key in ("automated_tavily_result", "processed_evidence", "evidence_ai_report"):
+                st.session_state.pop(key, None)
+            try:
+                with st.spinner("Collecting and analyzing evidence..."):
+                    result = run_complete_audit(full_company, full_market, full_category)
+                st.session_state.automated_tavily_result = result["research"]
+                st.session_state.processed_evidence = result["processed"]
+                if result["analysis"]:
+                    st.session_state.evidence_ai_report = result["analysis"]
+                    st.session_state.workspace = result["analysis"]["scope"]
+                    st.success("Audit ready. Open Overview or Reports.")
+                else:
+                    st.warning(result["message"])
+            except (RuntimeError, ValueError) as exc:
+                st.error("Audit stopped: " + str(exc))
+                st.caption("No automatic retry was made.")
     st.divider()
     st.subheader("AI Brand Research · preliminary draft")
     st.caption("One manual Gemini request per click. No web search or verified sources. This is not a completed audit.")
