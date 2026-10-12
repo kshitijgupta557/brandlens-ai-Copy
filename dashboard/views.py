@@ -8,6 +8,7 @@ from automated_research import run_research
 from evidence_processing import process_evidence
 from evidence_analysis import analyze_evidence
 from intelligence_dashboard import split_report, citations_for, coverage
+from intelligence_export import build_intelligence_report
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -412,16 +413,36 @@ def recommendations():
     st.info("Priorities and timing are illustrative. Impact, cost and confidence remain unassessed until evidence is available.")
 
 def reports():
+    analysis = st.session_state.get("evidence_ai_report")
+    if analysis:
+        st.subheader("Download your Brand Intelligence Report")
+        st.caption("Research-backed AI draft · includes executive summary, findings, source register and limitations. No new API requests.")
+        try:
+            report_text = build_intelligence_report(analysis)
+            st.download_button(
+                "Download Brand Intelligence Report (.md)",
+                data=report_text,
+                file_name="brandlens-intelligence-report.md",
+                mime="text/markdown",
+                type="primary",
+            )
+            with st.expander("Preview report", expanded=False):
+                st.markdown(report_text)
+        except ValueError as exc:
+            st.error(str(exc))
+        st.divider()
+    else:
+        st.info("To generate a findings report, run Tavily research, process the evidence and generate Gemini analysis under 01 Brand Audit.")
     _research_section("Evidence gaps")
     kpis([("Planned sections", str(len(SECTIONS)), "Detailed audit structure"),
           ("Suggested presentation", "~18 slides", "Plus evidence appendix"),
           ("Verified findings", "0", "No completed audit yet"),
-          ("Available download", "Blueprint", "Markdown outline, not a findings report")])
+          ("Available download", "Report + blueprint" if analysis else "Blueprint", "Research report when analysis is loaded")])
     st.subheader("From evidence to an executive presentation")
     st.write("The planned report will connect each finding to sources, explain its business meaning, and translate it into a testable action. The outline below is ready to guide a future presentation.")
     st.download_button("Download report blueprint (.md)", blueprint(st.session_state.workspace),
                        file_name="brandlens-report-blueprint.md", mime="text/markdown", type="primary")
-    st.caption("Structure only. Includes no mock findings. PDF, Word and PowerPoint exports are not implemented in this milestone.")
+    st.caption("Blueprint is structure-only. The research report above contains unverified AI findings. PDF, Word and PowerPoint exports are not yet implemented.")
     for index, (title, detail, slides, visual) in enumerate(SECTIONS, 1):
         with st.expander(f"{index:02d} / {title}", expanded=index == 1):
             st.write(detail)
