@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import streamlit as st
 from dashboard import charts, demo
 from brand_research import generate_preliminary_audit
+from evidence_research import research_with_sources
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -90,6 +91,42 @@ def brand_audit():
             file_name="brandlens-preliminary-ai-draft.json",
             mime="application/json",
         )
+    st.divider()
+    st.subheader("Search-grounded research · source discovery")
+    st.caption("One optional, manual Gemini request with Google Search grounding. Availability and free-tier quota depend on your account.")
+    with st.form("grounded_research_form"):
+        base = st.session_state.workspace
+        src_company = st.text_input("Company for source research", value=base["company"], max_chars=100)
+        src_market = st.text_input("Market for source research", value=base["market"], max_chars=80)
+        src_category = st.text_input("Category for source research", value=base["category"], max_chars=100)
+        src_ack = st.checkbox("I understand these inputs are sent to Gemini and Google Search; links and claims still need verification.")
+        src_run = st.form_submit_button("Research with sources")
+    if src_run:
+        if not src_ack:
+            st.warning("Please acknowledge the search-grounding limitations.")
+        elif not all(x.strip() for x in (src_company, src_market, src_category)):
+            st.warning("Complete all three fields.")
+        else:
+            st.session_state.pop("grounded_brief", None)
+            with st.spinner("Researching public sources (one request)..."):
+                try:
+                    st.session_state.grounded_brief = research_with_sources(src_company, src_market, src_category)
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
+    if "grounded_brief" in st.session_state:
+        brief = st.session_state.grounded_brief
+        st.warning(brief["status"])
+        st.caption("Generated: " + brief["generated_at_utc"])
+        st.markdown(brief["brief"])
+        st.subheader("Source links returned by grounding")
+        if brief["sources"]:
+            for item in brief["sources"]:
+                st.markdown(f"- [{item['title']}]({item['url']})")
+        else:
+            st.info("No source links were returned. Treat all statements as unverified.")
+        st.caption(brief["warning"])
+        st.download_button("Download source research (.json)", json.dumps(brief, indent=2),
+                           file_name="brandlens-source-research.json", mime="application/json")
     st.divider()
     st.subheader("The planned audit team")
     st.caption("Architecture preview only. These agents are not running.")
