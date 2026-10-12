@@ -6,6 +6,7 @@ from brand_research import generate_preliminary_audit
 from tavily_search import search_once
 from automated_research import run_research
 from evidence_processing import process_evidence
+from evidence_analysis import analyze_evidence
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -151,6 +152,7 @@ def brand_audit():
         else:
             st.session_state.pop("automated_tavily_result", None)
             st.session_state.pop("processed_evidence", None)
+            st.session_state.pop("evidence_ai_report", None)
             with st.spinner("Collecting public search results across five topics..."):
                 try:
                     st.session_state.automated_tavily_result = run_research(auto_company, auto_market, auto_category)
@@ -197,6 +199,28 @@ def brand_audit():
                                json.dumps(processed, indent=2),
                                file_name="brandlens-processed-evidence.json",
                                mime="application/json")
+    if "processed_evidence" in st.session_state:
+        st.divider()
+        st.subheader("Gemini evidence analysis")
+        st.caption("One manually triggered Gemini request using existing snippets; no new Tavily search.")
+        approved = st.checkbox("I approve sending collected evidence to Gemini for unverified analysis.", key="approve_evidence_analysis")
+        if st.button("Generate AI Analysis", disabled=not approved):
+            st.session_state.pop("evidence_ai_report", None)
+            try:
+                with st.spinner("Analyzing evidence..."):
+                    st.session_state.evidence_ai_report = analyze_evidence(st.session_state.processed_evidence)
+            except (RuntimeError, ValueError) as exc:
+                st.error(str(exc))
+        if "evidence_ai_report" in st.session_state:
+            result = st.session_state.evidence_ai_report
+            st.warning(result["status"])
+            st.markdown(result["report_markdown"])
+            with st.expander("Source reference map"):
+                for source in result["sources"]:
+                    st.markdown(f"{source['id']} · [{source['title']}]({source['url']})")
+            st.caption(result["warning"])
+            st.download_button("Download AI analysis (.json)", json.dumps(result, indent=2),
+                               file_name="brandlens-evidence-analysis.json", mime="application/json")
     st.divider()
     st.subheader("The planned audit team")
     st.caption("Architecture preview only. These agents are not running.")
