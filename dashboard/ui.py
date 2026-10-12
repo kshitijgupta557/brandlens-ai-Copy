@@ -113,5 +113,5 @@ def audit_hero():
                 '<h2>See the brand.<br>Find the opportunity.</h2>'
                 '<p>Explore a structured view of positioning, consumer perception and digital presence — '
                 'with a clear path from evidence to action.</p><div class="hero-tags">'
-                '<span>Local demo · No API calls</span><span>7 analysis pages</span>'
+                '<span>Research pipeline available</span><span>7 analysis pages</span>'
                 '<span>12-section report blueprint</span></div></section>', unsafe_allow_html=True)
