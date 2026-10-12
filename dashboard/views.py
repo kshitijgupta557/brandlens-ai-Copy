@@ -306,7 +306,30 @@ def overview():
         st.write("Health = the rounded arithmetic mean of five mock scores. Other values are fixed fixtures, not estimates. No confidence level is claimed.")
         st.dataframe(demo.DIMENSIONS, hide_index=True, width="stretch")
 
+def _research_section(name):
+    analysis = st.session_state.get("evidence_ai_report")
+    if not analysis:
+        st.info("No research-backed analysis in this session. Generate one under 01 Brand Audit. Content below is demonstration data.")
+        return
+    content = split_report(analysis.get("report_markdown", "")).get(name, "")
+    st.warning("Research-based AI interpretation — source snippets are not fact-checked. Charts below are synthetic.")
+    st.subheader(name + " · Research")
+    if not content:
+        st.info("No distinct section was found in the AI report.")
+        return
+    st.markdown(content)
+    lookup = {s.get("id"): s for s in analysis.get("sources", [])}
+    refs = citations_for(content, analysis.get("sources", []))
+    if refs:
+        with st.expander("Referenced sources"):
+            for ref in refs:
+                source = lookup[ref]
+                st.markdown(f"[{ref}] [{source.get('title', 'Source')}]({source.get('url', '')})")
+    st.divider()
+    st.caption("DEMONSTRATION DATA BELOW — not based on the research above.")
+
 def competitors():
+    _research_section("Competitor landscape")
     kpis([("Brands in demo", "4", "One fictional brand and three fictional peers"),
           ("Sample brand rank", "2 of 4", "Ranked only by mock health score"),
           ("Gap to sample leader", "9 pts", "81 minus 72; not a real benchmark"),
@@ -337,6 +360,7 @@ def sentiment():
         feature("Read the context, not just the percentage", "A future audit must explain platform coverage, language, sample selection and uncertainty before interpreting sentiment.")
 
 def digital():
+    _research_section("Digital presence")
     kpis([("Digital index · demo", "74/100", "Mean of 3 fictional channel scores"),
           ("Website · demo", "82/100", "Illustrative score"), ("Search · demo", "74/100", "Illustrative score"),
           ("Social · demo", "66/100", "Illustrative score")])
@@ -353,6 +377,7 @@ def digital():
     st.caption("No website crawl, search query, analytics connection or social platform request has been performed.")
 
 def recommendations():
+    _research_section("Strategic recommendations")
     st.write("An example action agenda. Every item below is a hypothesis for demonstration, not advice based on company evidence.")
     stage = st.selectbox("Planning horizon", ["All stages", "Days 1–30", "Days 31–60", "Days 61–90"])
     for item in demo.PRIORITIES:
@@ -368,6 +393,7 @@ def recommendations():
     st.info("Priorities and timing are illustrative. Impact, cost and confidence remain unassessed until evidence is available.")
 
 def reports():
+    _research_section("Evidence gaps")
     kpis([("Planned sections", str(len(SECTIONS)), "Detailed audit structure"),
           ("Suggested presentation", "~18 slides", "Plus evidence appendix"),
           ("Verified findings", "0", "No completed audit yet"),
