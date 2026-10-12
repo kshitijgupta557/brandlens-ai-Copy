@@ -1,7 +1,8 @@
 """Five-topic Tavily research, capped at five basic requests per explicit run."""
 from datetime import datetime, timezone
-from tavily_search import search_once, _key
+from tavily_search import _key
 import json
+import re
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -15,6 +16,16 @@ TOPICS = (
 )
 
 
+def _relevant(item, company, category, topic):
+    """Keyword relevance screen, not independent fact-checking."""
+    text = " ".join(str(item.get(k) or "") for k in ("title", "url", "content")).lower()[:2500]
+    words = re.findall(r"[a-z0-9]+", company.lower())
+    brand_match = bool(words) and all(word in text for word in words if len(word) >= 3)
+    category_words = [w for w in re.findall(r"[a-z0-9]+", category.lower()) if len(w) >= 3]
+    category_match = any(w in text for w in category_words)
+    return brand_match or (topic == "Market & industry" and category_match)
+
+
 def run_research(company: str, market: str, category: str) -> dict:
     values = [str(v).strip() for v in (company, market, category)]
     if any(not v or len(v) > 100 for v in values):
@@ -26,7 +37,7 @@ def run_research(company: str, market: str, category: str) -> dict:
     sections, seen, errors = [], set(), []
     attempted = 0
     for title, suffix in TOPICS:
-        query = f"{company} {category} {market} {suffix}"
+        query = f'"{company}" {category} {market} {suffix}'
         payload = json.dumps({
             "query": query, "search_depth": "basic", "max_results": 5,
             "include_answer": False, "include_raw_content": False,
@@ -51,7 +62,7 @@ def run_research(company: str, market: str, category: str) -> dict:
         except (URLError, TimeoutError, ValueError, TypeError):
             errors.append(f"{title}: request failed or response invalid.")
             continue
-        sources = []
+        sources, rejected = [], 0
         for item in data["results"][:5]:
             if not isinstance(item, dict):
                 continue
@@ -59,13 +70,16 @@ def run_research(company: str, market: str, category: str) -> dict:
             parsed = urlparse(url)
             if parsed.scheme != "https" or not parsed.netloc or url in seen:
                 continue
+            if not _relevant(item, company, category, title):
+                rejected += 1
+                continue
             seen.add(url)
             sources.append({
                 "title": str(item.get("title") or "Untitled source")[:200],
                 "url": url,
-                "snippet": str(item.get("content") or "")[:1500],
+                "snippet": re.sub(r"\\s+", " ", str(item.get("content") or "")).strip()[:450],
             })
-        sections.append({"topic": title, "query": query, "sources": sources})
+        sections.append({"topic": title, "query": query, "sources": sources, "rejected_irrelevant": rejected})
     return {
         "status": "AUTOMATED SOURCE DISCOVERY — NOT VERIFIED",
         "scope": {"company": company, "market": market, "category": category},
@@ -75,5 +89,5 @@ def run_research(company: str, market: str, category: str) -> dict:
         "unique_sources": len(seen),
         "sections": sections,
         "errors": errors,
-        "note": "Results are unverified search snippets. Gemini was not called. This report is stored only in the current Streamlit session until downloaded.",
+        "note": "Keyword screening can reject relevant sources or accept weak ones; results are not fact-checked. Gemini was not called. This report is stored only in the current Streamlit session until downloaded.",
     }
