@@ -1,9 +1,41 @@
 """Manually initiated search-grounded brand brief; links are leads, not verified facts."""
+import re
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from google.genai import types
 from google.genai import errors as genai_errors
 from gemini import create_client, MODEL_ID
+
+
+def _safe_quota_details(exc: Exception) -> str:
+    """Expose only recognized quota metadata, never raw API responses or headers."""
+    parts = []
+    # SDK errors sometimes provide structured details, sometimes only a message.
+    # Restrict extraction to known Google quota identifiers and numeric limits.
+    raw = str(getattr(exc, "message", "") or "")
+    for pattern, label in (
+        (r'quotaId["\\s:=]+([A-Za-z0-9_.-]{1,100})', "Quota ID"),
+        (r'quotaMetric["\\s:=]+([A-Za-z0-9_./-]{1,140})', "Quota metric"),
+        (r'quota_limit_value["\\s:=]+([0-9]{1,12})', "Quota limit"),
+        (r'retryDelay["\\s:=]+([0-9]{1,6}s)', "Suggested retry delay"),
+    ):
+        match = re.search(pattern, raw, flags=re.IGNORECASE)
+        if match:
+            parts.append(f"{label}: {match.group(1)}")
+    # The SDK may expose parsed error details as a list of dictionaries.
+    details = getattr(exc, "details", None)
+    if isinstance(details, list):
+        for item in details[:5]:
+            if not isinstance(item, dict):
+                continue
+            for violation in item.get("violations", [])[:5] if isinstance(item.get("violations"), list) else []:
+                if not isinstance(violation, dict):
+                    continue
+                for key, label in (("quotaId", "Quota ID"), ("quotaMetric", "Quota metric"), ("quota_limit_value", "Quota limit")):
+                    value = violation.get(key)
+                    if isinstance(value, (str, int)) and re.fullmatch(r"[A-Za-z0-9_./-]{1,140}", str(value)):
+                        parts.append(f"{label}: {value}")
+    return " | ".join(dict.fromkeys(parts))[:450]
 
 
 def research_with_sources(company: str, market: str, category: str) -> dict:
@@ -67,7 +99,10 @@ def research_with_sources(company: str, market: str, category: str) -> dict:
             message = f"Gemini service temporarily unavailable (HTTP {code}). Try again later."
         else:
             message = f"Gemini API request failed (HTTP {code if isinstance(code, int) else 'unknown'})."
-        raise RuntimeError(message + " No results were saved.") from None
+        detail = _safe_quota_details(exc) if code == 429 else ""
+        if code == 429 and not detail:
+            detail = "Google did not expose a recognizable quota identifier in this response."
+        raise RuntimeError(message + (f" Diagnostic: {detail}." if detail else "") + " No results were saved.") from None
     except (AttributeError, TypeError, ValueError):
         raise RuntimeError("Gemini returned an unexpected or empty research response. No results were saved.") from None
     except Exception:
