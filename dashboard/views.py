@@ -9,6 +9,7 @@ from evidence_processing import process_evidence
 from evidence_analysis import analyze_evidence
 from intelligence_dashboard import split_report, citations_for, coverage
 from intelligence_export import build_intelligence_report
+from pdf_export import build_pdf_report
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -426,6 +427,9 @@ def reports():
                 mime="text/markdown",
                 type="primary",
             )
+            pdf_data = build_pdf_report(analysis)
+            st.download_button("Download Brand Intelligence Report (.pdf)", data=pdf_data,
+                               file_name="brandlens-intelligence-report.pdf", mime="application/pdf")
             with st.expander("Preview report", expanded=False):
                 st.markdown(report_text)
         except ValueError as exc:
@@ -442,7 +446,7 @@ def reports():
     st.write("The planned report will connect each finding to sources, explain its business meaning, and translate it into a testable action. The outline below is ready to guide a future presentation.")
     st.download_button("Download report blueprint (.md)", blueprint(st.session_state.workspace),
                        file_name="brandlens-report-blueprint.md", mime="text/markdown", type="primary")
-    st.caption("Blueprint is structure-only. The research report above contains unverified AI findings. PDF, Word and PowerPoint exports are not yet implemented.")
+    st.caption("Blueprint is structure-only. The research report above contains unverified AI findings. PDF and Markdown findings exports are available; Word and PowerPoint exports are not implemented.")
     for index, (title, detail, slides, visual) in enumerate(SECTIONS, 1):
         with st.expander(f"{index:02d} / {title}", expanded=index == 1):
             st.write(detail)
