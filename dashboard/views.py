@@ -162,7 +162,7 @@ def brand_audit():
         for issue in report["errors"]:
             st.error(issue)
         for section in report["sections"]:
-            with st.expander(f"{section['topic']} · {len(section['sources'])} unique sources", expanded=True):
+            with st.expander(f"{section['topic']} · {len(section['sources'])} accepted · {section.get('rejected_irrelevant', 0)} rejected", expanded=False):
                 st.caption("Search query: " + section["query"])
                 if not section["sources"]:
                     st.info("No new usable HTTPS source links for this topic.")
