@@ -5,6 +5,7 @@ from dashboard import charts, demo
 from brand_research import generate_preliminary_audit
 from tavily_search import search_once
 from automated_research import run_research
+from evidence_processing import process_evidence
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -149,6 +150,7 @@ def brand_audit():
             st.warning("Complete all three fields.")
         else:
             st.session_state.pop("automated_tavily_result", None)
+            st.session_state.pop("processed_evidence", None)
             with st.spinner("Collecting public search results across five topics..."):
                 try:
                     st.session_state.automated_tavily_result = run_research(auto_company, auto_market, auto_category)
@@ -172,6 +174,29 @@ def brand_audit():
         st.caption(report["note"])
         st.download_button("Download research evidence (.json)", data=json.dumps(report, indent=2),
                            file_name="brandlens-five-topic-research.json", mime="application/json")
+    if "automated_tavily_result" in st.session_state:
+        st.subheader("Evidence processing · no API credits")
+        if st.button("Clean and review collected evidence"):
+            try:
+                st.session_state.processed_evidence = process_evidence(st.session_state.automated_tavily_result)
+            except ValueError as exc:
+                st.error(str(exc))
+        if "processed_evidence" in st.session_state:
+            processed = st.session_state.processed_evidence
+            st.warning(processed["status"])
+            st.caption(f"Processed sources: {processed['source_count']} · {processed['method']}")
+            for section in processed["sections"]:
+                with st.expander(f"{section['topic']} · {len(section['sources'])} processed", expanded=False):
+                    for source in section["sources"]:
+                        st.markdown(f"**[{source['title']}]({source['url']})**")
+                        st.caption(source["domain"] + " · " + source["source_type"])
+                        st.write(source["clean_snippet"])
+                        for flag in source["review_flags"]:
+                            st.caption("Review: " + flag)
+            st.download_button("Download processed evidence (.json)",
+                               json.dumps(processed, indent=2),
+                               file_name="brandlens-processed-evidence.json",
+                               mime="application/json")
     st.divider()
     st.subheader("The planned audit team")
     st.caption("Architecture preview only. These agents are not running.")
