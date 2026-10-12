@@ -46,18 +46,15 @@ def build_pdf_report(analysis):
     story.append(HRFlowable(width="100%", thickness=1, color=TEAL, spaceAfter=16))
     sections = split_report(analysis["report_markdown"])
     counts = coverage(analysis)
-    story.append(_p("Executive summary", styles["BLSection"]))
-    for heading in ("Brand overview", "Competitor landscape", "Market insights", "Strategic recommendations"):
-        body = sections.get(heading, "").strip()
-        excerpt = body.split("\n\n")[0][:900] if body else "Insufficient evidence."
-        story.append(_p(heading, styles["BLMeta"]))
-        story.append(_p(excerpt, styles["BLBody"]))
+    story.append(_p("Executive brief", styles["BLSection"]))
+    story.append(_p("This audit evaluates the available brand evidence across company, competition, market, digital presence and strategic options. Findings below are AI interpretations of unverified snippets; evidence gaps are explicitly marked.", styles["BLBody"]))
     story.append(_p("Evidence coverage", styles["BLSection"]))
     for topic in ("Company & products", "Competitors", "Market & industry", "Digital presence", "Brand positioning"):
         count = counts.get(topic, 0)
         story.append(_p(f"{topic}: {count} collected snippet(s)" +
                         (" — evidence gap" if not count else " — unverified"), styles["BLBody"]))
-    story.append(_p("Detailed research findings", styles["BLSection"]))
+    story.append(HRFlowable(width="100%", thickness=0.6, color=colors.HexColor("#D7E6DF"), spaceBefore=12, spaceAfter=8))
+    story.append(_p("Brand audit findings", styles["BLSection"]))
     for heading, _ in SECTIONS:
         story.append(_p(heading, styles["BLSection"]))
         body = sections.get(heading, "").strip()
@@ -89,7 +86,7 @@ def build_pdf_report(analysis):
         "All synthetic demonstration charts, sentiment scores and rankings are excluded.",
         "Validate important claims against original sources before sharing or making business decisions.",
     ):
-        story.append(_p("• " + line, styles["BLBody"]))
+        story.append(_p("– " + line, styles["BLBody"]))
     def footer(canvas, document):
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(MUTED)
