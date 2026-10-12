@@ -60,7 +60,7 @@ if submitted:
                 st.session_state.evidence_ai_report = analysis
                 st.session_state.audit_history.append(analysis)
                 st.session_state.audit_history = st.session_state.audit_history[-10:]
-                st.success("Your brand audit is ready.")
+                st.success("Research draft generated. Review evidence coverage and gaps before using the report.")
             else:
                 st.warning(result.get("message", "No usable evidence found."))
             if result.get("research", {}).get("errors"):
@@ -82,6 +82,11 @@ if analysis:
     b.metric("Research topics covered", sum(1 for v in counts.values() if v))
     c.metric("Topics with no sources", sum(1 for v in counts.values() if not v))
     st.caption("Coverage counts reflect collected snippets, not source credibility or verified findings.")
+    critical = [name for name in ("Competitors", "Digital presence", "Brand positioning") if counts.get(name, 0) == 0]
+    if critical:
+        st.error("Incomplete audit: no evidence collected for " + ", ".join(critical) +
+                 ". The report is a partial research draft, not a comprehensive brand audit.")
+
     report = split_report(analysis.get("report_markdown", ""))
     names = ["Brand overview", "Competitor landscape", "Market insights", "Digital presence", "Strategic recommendations", "Evidence gaps"]
     tabs = st.tabs(["Overview", "Competitors", "Market", "Digital", "Strategy", "Evidence gaps"])
