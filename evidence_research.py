@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from google.genai import types
+from google.genai import errors as genai_errors
 from gemini import create_client, MODEL_ID
 
 
@@ -54,8 +55,20 @@ def research_with_sources(company: str, market: str, category: str) -> dict:
             "source_count": len(sources),
             "warning": "Links are returned by model grounding and may be indirect. Check each claim against original sources. Source count is not a count of verified claims.",
         }
+    except genai_errors.APIError as exc:
+        code = getattr(exc, "code", None)
+        if code in (429,):
+            message = "Gemini quota or rate limit reached (HTTP 429). Wait before retrying; check AI Studio usage."
+        elif code in (400, 404):
+            message = f"Gemini rejected the search-grounding request (HTTP {code}). The model or request configuration may not support this feature."
+        elif code in (401, 403):
+            message = f"Gemini denied the request (HTTP {code}). Check key permissions, API access and feature eligibility."
+        elif code in (500, 502, 503, 504):
+            message = f"Gemini service temporarily unavailable (HTTP {code}). Try again later."
+        else:
+            message = f"Gemini API request failed (HTTP {code if isinstance(code, int) else 'unknown'})."
+        raise RuntimeError(message + " No results were saved.") from None
+    except (AttributeError, TypeError, ValueError):
+        raise RuntimeError("Gemini returned an unexpected or empty research response. No results were saved.") from None
     except Exception:
-        raise RuntimeError(
-            "Search-grounded research is unavailable. Your model or free-tier account may "
-            "not support Google Search grounding, or quota may be exhausted. No results were saved."
-        ) from None
+        raise RuntimeError("Research failed unexpectedly. Check Streamlit app logs. No results were saved.") from None
