@@ -248,6 +248,25 @@ def _live_intelligence():
     cols[1].metric("Topics with evidence", sum(bool(counts.get(t)) for t in topics))
     cols[2].metric("Evidence gaps", sum(not counts.get(t) for t in topics))
     st.caption("Counts measure collected snippets, not verified findings or research quality.")
+    st.markdown("#### Executive research snapshot")
+    summary_names = ["Brand overview", "Competitor landscape", "Market insights", "Strategic recommendations"]
+    summary_labels = ["Brand", "Competitive landscape", "Market", "Strategic direction"]
+    summary_cols = st.columns(2, gap="medium")
+    for index, (name, label) in enumerate(zip(summary_names, summary_labels)):
+        with summary_cols[index % 2], st.container(border=True):
+            st.caption(label.upper())
+            content = sections.get(name, "").strip()
+            if content:
+                # Display a short excerpt, not an AI-invented score or fresh claim.
+                excerpt = content.split("\\n\\n")[0].strip()
+                if len(excerpt) > 320:
+                    excerpt = excerpt[:320].rsplit(" ", 1)[0] + "…"
+                st.markdown(excerpt)
+                refs = citations_for(excerpt, analysis.get("sources", []))
+                st.caption("Source IDs: " + (", ".join(refs) if refs else "See full section for evidence"))
+            else:
+                st.write("Insufficient evidence in this section.")
+    st.caption("Snapshots are excerpts from the existing Gemini report, not separately verified conclusions.")
     tab_names = ["Brand", "Competitors", "Market", "Digital", "Strategy", "Gaps"]
     section_names = ["Brand overview", "Competitor landscape", "Market insights", "Digital presence", "Strategic recommendations", "Evidence gaps"]
     tabs = st.tabs(tab_names)
@@ -278,7 +297,7 @@ def _live_intelligence():
 def overview():
     _live_intelligence()
     st.divider()
-    st.caption("DEMONSTRATION DATA BELOW — not derived from the research above.")
+    st.warning("DEMONSTRATION AREA BELOW — all scores, rankings and charts are synthetic and do not measure the researched brand.")
     kpis([("Brand health · demo", f"{demo.HEALTH}/100", "Equal-weight average of 5 synthetic dimensions"),
           ("Positive sentiment · demo", "64%", "Illustrative sentiment distribution"),
           ("Share of voice · demo", "28%", "Fictional four-brand comparison"),
