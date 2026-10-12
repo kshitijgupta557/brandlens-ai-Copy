@@ -44,7 +44,6 @@ def analyze_evidence(processed):
         "Never invent citations, figures, competitor names, market shares, sentiment metrics, or URLs. "
         "Treat numbers and promotional claims as unverified. Clearly distinguish evidence from inference. "
         "If a topic has no supporting evidence, explicitly state 'Insufficient evidence' instead of filling gaps. "
-         "
         "For each section, provide substantive business insights only when evidence supports them. In Competitor landscape, name supported rivals, explain competitive basis and state missing comparison data. In Digital presence, separate documented channels from actual performance metrics. In Strategic recommendations, provide 3-5 specific actions with rationale, owner, measurable KPI and confidence, explicitly labeling hypotheses. Avoid generic boilerplate, company-registry trivia and repeated paragraphs. Cite sources using [S1] syntax with ONE source ID per bracket (not [S1, S2]). Do not imply that citations mean independent fact verification.\n\nEVIDENCE_JSON:\n" + payload
     )
     try:
