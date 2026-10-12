@@ -7,6 +7,7 @@ from tavily_search import search_once
 from automated_research import run_research
 from evidence_processing import process_evidence
 from evidence_analysis import analyze_evidence
+from intelligence_dashboard import split_report, citations_for, coverage
 import json
 from dashboard.report import SECTIONS, blueprint
 from dashboard.ui import audit_hero, feature, kpis
@@ -231,7 +232,53 @@ def brand_audit():
         {"Planned role": "Strategy & verification", "Responsibility": "Challenge claims and prioritize supported actions", "Status": "Not implemented"},
     ], hide_index=True, width="stretch")
 
+def _live_intelligence():
+    analysis = st.session_state.get("evidence_ai_report")
+    if not analysis:
+        return False
+    scope = analysis.get("scope", {})
+    company = scope.get("company", "Selected brand")
+    st.subheader(f"{company} · Research intelligence")
+    st.warning("AI interpretation of unverified search snippets — not independently fact-checked. Demo charts below remain synthetic.")
+    sections = split_report(analysis.get("report_markdown", ""))
+    counts = coverage(analysis)
+    topics = ["Company & products", "Competitors", "Market & industry", "Digital presence", "Brand positioning"]
+    cols = st.columns(3)
+    cols[0].metric("Sources supplied", analysis.get("source_count", 0))
+    cols[1].metric("Topics with evidence", sum(bool(counts.get(t)) for t in topics))
+    cols[2].metric("Evidence gaps", sum(not counts.get(t) for t in topics))
+    st.caption("Counts measure collected snippets, not verified findings or research quality.")
+    tab_names = ["Brand", "Competitors", "Market", "Digital", "Strategy", "Gaps"]
+    section_names = ["Brand overview", "Competitor landscape", "Market insights", "Digital presence", "Strategic recommendations", "Evidence gaps"]
+    tabs = st.tabs(tab_names)
+    for tab, name in zip(tabs, section_names):
+        with tab:
+            st.markdown("#### " + name)
+            content = sections.get(name, "")
+            if content:
+                st.markdown(content)
+                refs = citations_for(content, analysis.get("sources", []))
+                if refs:
+                    with st.expander("Referenced source links"):
+                        lookup = {s.get("id"): s for s in analysis.get("sources", [])}
+                        for ref in refs:
+                            source = lookup[ref]
+                            st.markdown(f"[{ref}] [{source.get('title', 'Source')}]({source.get('url', '')})")
+            else:
+                st.info("No separate findings for this section. Inspect the full report for any formatting differences.")
+    st.markdown("#### Research coverage")
+    st.dataframe([{"Topic": topic, "Collected snippets": counts.get(topic, 0),
+                   "Status": "Unverified evidence" if counts.get(topic) else "Evidence gap"} for topic in topics],
+                 hide_index=True, width="stretch")
+    with st.expander("Full original Gemini analysis"):
+        st.markdown(analysis.get("report_markdown", ""))
+    st.caption("Research is held in the current Streamlit session. The remaining page content is demo data, not derived from these sources.")
+    return True
+
 def overview():
+    _live_intelligence()
+    st.divider()
+    st.caption("DEMONSTRATION DATA BELOW — not derived from the research above.")
     kpis([("Brand health · demo", f"{demo.HEALTH}/100", "Equal-weight average of 5 synthetic dimensions"),
           ("Positive sentiment · demo", "64%", "Illustrative sentiment distribution"),
           ("Share of voice · demo", "28%", "Fictional four-brand comparison"),
