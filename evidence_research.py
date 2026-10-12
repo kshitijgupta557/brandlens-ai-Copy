@@ -53,7 +53,7 @@ def _safe_quota_details(exc: Exception) -> str:
             except (ValueError, TypeError):
                 pass
         for key in allowed:
-            pattern = rf'["\\\']?{re.escape(key)}["\\\']?\\s*[:=]\\s*["\\\']?([A-Za-z0-9_./-]{{1,140}})'
+            pattern = rf'"?{re.escape(key)}"?\s*[:=]\s*"?([A-Za-z0-9_./-]{{1,140}})'
             for match in re.finditer(pattern, raw):
                 record(key, match.group(1))
     return " | ".join(found)[:450]
