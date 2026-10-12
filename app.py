@@ -15,10 +15,12 @@ PAGES = {
     "Reports": views.reports,
 }
 with st.sidebar:
-    st.markdown('<div class="wordmark">◈ BrandLens<span>AI</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="wordmark"><span class="brand-symbol">◈</span>BrandLens<span class="ai-badge">AI</span></div>', unsafe_allow_html=True)
     st.caption("BRAND INTELLIGENCE WORKSPACE")
     st.divider()
-    page = st.radio("Workspace navigation", list(PAGES), index=1, key="navigation", label_visibility="collapsed")
+    st.markdown('<div class="sidebar-label">EXPLORE YOUR BRAND</div>', unsafe_allow_html=True)
+    page = st.radio("Workspace navigation", list(PAGES), index=1, key="navigation", label_visibility="collapsed",
+                    format_func=lambda name: f"{list(PAGES).index(name) + 1:02d}  {name}")
     st.divider()
     st.caption("CURRENT WORKSPACE")
     st.text(st.session_state.workspace["company"])
@@ -26,7 +28,7 @@ with st.sidebar:
     with st.expander("Connection status"):
         st.write("Gemini requests: disabled")
         st.caption("Key detected (not validated)." if get_api_key() else "No API key needed for this demo.")
-    st.caption("MILESTONE 02 / PRODUCT PREVIEW")
+    st.caption("MILESTONE 02.1 / PRODUCT PREVIEW")
 page_header(page, st.session_state.workspace["company"])
 st.markdown('<div class="demo-notice"><b>DEMO DATA</b> All scores, charts and examples are synthetic. '
             'They do not describe the entered company. No sources have been collected.</div>', unsafe_allow_html=True)

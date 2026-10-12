@@ -3,13 +3,14 @@ from datetime import datetime, timezone
 import streamlit as st
 from dashboard import charts, demo
 from dashboard.report import SECTIONS, blueprint
-from dashboard.ui import feature, kpis
+from dashboard.ui import audit_hero, feature, kpis
 
 def brand_audit():
+    audit_hero()
     left, right = st.columns([1.4, 1], gap="large")
     with left, st.container(border=True):
-        st.subheader("Start with a brand. Explore the possibilities.")
-        st.write("Set up a demo workspace to explore how a future evidence-based audit could be presented.")
+        st.subheader("Set up your brand workspace")
+        st.caption("01 / DEFINE THE SCOPE · About a minute to explore the demo")
         with st.form("audit_setup"):
             current = st.session_state.workspace
             company = st.text_input("Company name", value=current["company"], max_chars=100)

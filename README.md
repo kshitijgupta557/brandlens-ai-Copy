@@ -132,3 +132,16 @@ From the project root, run `python -m compileall -q app.py gemini.py dashboard`.
 The dashboard has also been checked using Streamlit AppTest for navigation,
 form validation, session persistence and recommendation filtering with model
 client construction blocked. Gemini remains disabled in `gemini.py`.
+
+## Milestone 2.1 — visual refinement
+
+The dashboard uses emerald teal, warm gold, soft violet and coral on light
+backgrounds. KPI cards have inline SVG icons, tinted surfaces and subtle shadows;
+charts include readable values and category colours. The header keeps toolbar
+clearance on desktop and mobile, wraps long workspace names, and has no fixed
+height or clipped overflow. At narrower widths the analysis columns stack.
+Brand Audit includes a product introduction above the existing demo form.
+
+All seven pages, synthetic-data warnings and the 12-section blueprint are
+preserved. Gemini remains disabled; no new dependencies or services are required.
+CSS selectors for Streamlit layout may need review when upgrading Streamlit.
