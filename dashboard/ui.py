@@ -77,10 +77,13 @@ def apply_styles():
     </style>""", unsafe_allow_html=True)
 
 
-def page_header(page, company):
+def page_header(page, company, research_loaded=False):
+    status = ('<span class="demo-pill">Research draft</span><span>Unverified source material</span>'
+              if research_loaded else
+              '<span class="demo-pill">Demo workspace</span><span>Synthetic data</span>')
     st.markdown(f'<header class="brand-header"><div class="eyebrow">BRANDLENS AI / INTELLIGENCE WORKSPACE</div>'
                 f'<h1>{escape(page)}</h1><div class="header-meta"><span>Workspace: {escape(company)}</span>'
-                '<span class="demo-pill">● Demo workspace</span><span>No live data</span></div></header>', unsafe_allow_html=True)
+                f'{status}</div></header>', unsafe_allow_html=True)
 
 
 def kpis(items):
